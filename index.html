@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Voice Notes & Reminders</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --card: #1a1a1a;
+    --text: #f0f0f0;
+    --muted: #888;
+    --accent: #FF6B35;
+    --accent2: #3B82F6;
+    --danger: #EF4444;
+    --border: rgba(255,255,255,0.08);
+    --green: #22C55E;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  header {
+    padding: 16px 20px 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  h1 {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-actions { display: flex; gap: 10px; }
+  .icon-sm {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.15s;
+  }
+  .icon-sm:active { transform: scale(0.92); background: #2a2a2a; }
+
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 14px 0; font-weight: 700;
+    font-size: 14px; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: 0.2s; letter-spacing: 0.5px;
+  }
+  .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+  .tab-badge {
+    background: var(--accent); color: #000; font-size: 10px; font-weight: 800;
+    padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle;
+  }
+
+  main {
+    flex: 1; overflow-y: auto; padding: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  main::-webkit-scrollbar { width: 3px; }
+  main::-webkit-scrollbar-track { background: transparent; }
+  main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .input-card {
+    background: var(--card); border-radius: 16px; padding: 16px;
+    border: 1px solid var(--border); margin-bottom: 16px;
+  }
+  .input-row { display: flex; gap: 10px; align-items: center; }
+
+  input, textarea {
+    flex: 1; background: #111; border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-size: 15px; font-family: inherit; outline: none;
+    transition: border 0.2s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: none; height: 60px; }
+  input[type="datetime-local"] { color-scheme: dark; }
+
+  .btn {
+    padding: 12px 18px; border-radius: 10px; font-weight: 700;
+    font-size: 13px; border: none; cursor: pointer; transition: 0.15s;
+    white-space: nowrap; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-mic {
+    width: 46px; height: 46px; border-radius: 50%; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .btn-mic.listening {
+    background: var(--danger) !important;
+    animation: pulse-mic 1s infinite;
+    box-shadow: 0 0 20px rgba(239,68,68,0.5);
+  }
+  @keyframes pulse-mic {
+    0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 24px rgba(239,68,68,0.8); }
+  }
+
+  .parsed-badge {
+    display: none; align-items: center; gap: 8px;
+    margin-top: 10px; padding: 10px 14px;
+    background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 10px; font-size: 13px; animation: fadeIn 0.3s ease-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .parsed-badge.visible { display: flex; }
+  .parsed-badge .parsed-icon { font-size: 18px; }
+  .parsed-badge .parsed-text { flex: 1; color: var(--accent2); font-weight: 600; }
+  .parsed-badge .parsed-clear {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 16px; padding: 2px 6px;
+  }
+
+  .item-list { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 16px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    transition: 0.15s;
+    animation: slideIn 0.3s ease-out;
+    position: relative; overflow: hidden;
+  }
+  .card:active { background: #1f1f1f; transform: scale(0.985); }
+  .card.deleting { opacity: 0; transform: translateX(20px); transition: 0.2s ease-in; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; word-break: break-word; }
+  .card-meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+  .card-meta span { display: flex; align-items: center; gap: 4px; }
+
+  .reminder-time {
+    background: rgba(59,130,246,0.15); color: var(--accent2);
+    padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;
+  }
+  .reminder-due { color: var(--accent) !important; animation: blink 1s infinite; }
+  @keyframes blink {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.5; }
+  }
+
+  .btn-delete {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: transparent; color: var(--muted); font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: 0.15s;
+  }
+  .btn-delete:active { background: rgba(239,68,68,0.2); color: var(--danger); }
+
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+    animation: fadeIn 0.4s ease-out;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-weight: 700; font-size: 16px; margin-bottom: 4px; color: #aaa; }
+  .empty-sub { font-size: 13px; }
+
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    background: var(--green); color: #000; padding: 12px 24px;
+    border-radius: 100px; font-weight: 700; font-size: 14px;
+    z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    box-shadow: 0 8px 24px rgba(34,197,94,0.3);
+    transform: translateX(-50%) translateY(10px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ai { background: var(--accent2); box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
+  .toast.warn { background: var(--accent); box-shadow: 0 8px 24px rgba(255,107,53,0.4); }
+
+  @media (min-width: 600px) {
+    body {
+      max-width: 500px; margin: 0 auto;
+      border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎙️ VoiceNotes</h1>
+  <div class="header-actions">
+    <button class="icon-sm" onclick="checkPendingReminders()" title="Check reminders">🔔</button>
+    <button class="icon-sm" onclick="exportData()" title="Export data">📤</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('notes')">
+    📝 Notes <span class="tab-badge" id="notes-count">0</span>
+  </div>
+  <div class="tab" onclick="switchTab('reminders')">
+    ⏰ Reminders <span class="tab-badge" id="reminders-count">0</span>
+  </div>
+</div>
+
+<main>
+  <div class="panel active" id="panel-notes">
+    <div class="input-card">
+      <textarea id="note-input" placeholder="Write a note or tap 🎤 to dictate..."></textarea>
+      <div class="input-row" style="margin-top:10px;">
+        <button class="btn btn-mic btn-outline" id="mic-note" onclick="startDictation('note')" title="Voice dictation">🎤</button>
+        <button class="btn btn-primary" onclick="addNote()" style="flex:1;justify-content:center;">Add Note</button>
+      </div>
+    </div>
+    <div class="item-list" id="notes-list"></div>
+    <div class="empty" id="notes-empty">
+      <div class="empty-icon">📝</div>
+      <div class="empty-title">No notes yet</div>
+      <div class="empty-sub">Type or tap the mic to create one</div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-reminders">
+    <div class="input-card">
+      <input type="text" id="reminder-input" placeholder="Say or type: 'Buy milk tomorrow at 5pm'" style="margin-bottom:10px;">
+      <input type="datetime-local" id="reminder-datetime">
+      <div class="parsed-badge" id="parsed-badge">
+        <span class="parsed-icon">🤖</span>
+        <span class="parsed-text" id="parsed-text"></span>
+        <button class="parsed-clear" onclick="clearParsed()" title="Clear">✕</button>
+      </div>
+      <div class="input-row" style="margin-top:10px;">
+        <button class="btn btn-mic btn-outline" id="mic-reminder" onclick="startDictation('reminder')" title="Voice dictation">🎤</button>
+        <button class="btn btn-primary" onclick="addReminder()" style="flex:1;justify-content:center;">Set Reminder</button>
+      </div>
+    </div>
+    <div class="item-list" id="reminders-list"></div>
+    <div class="empty" id="reminders-empty">
+      <div class="empty-icon">⏰</div>
+      <div class="empty-title">No reminders</div>
+      <div class="empty-sub">Tap 🎤 and say "Buy milk tomorrow at 5pm"</div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ DATA STORE ═══
+function loadData() {
+  try { return JSON.parse(localStorage.getItem('voicenotes_data')) || { notes: [], reminders: [] }; }
+  catch { return { notes: [], reminders: [] }; }
+}
+function saveData(data) { localStorage.setItem('voicenotes_data', JSON.stringify(data)); }
+
+// ═══ UTILS ═══
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date();
+  const opts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-US', opts);
+}
+function isOverdue(iso) { return iso && new Date(iso) < new Date(); }
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ── Toasts ──
+function showToast(msg, cls) {
+  const t = document.getElementById('toast');
+  t.className = 'toast' + (cls ? ' ' + cls : '');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), cls ? 2500 : 2000);
+}
+function showParsedBadge(parsed) {
+  const badge = document.getElementById('parsed-badge');
+  const text = document.getElementById('parsed-text');
+  if (parsed && parsed.dateTimeObj) {
+    const d = parsed.dateTimeObj;
+    text.textContent = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' at ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  }
+  badge.classList.add('visible');
+}
+function clearParsed() {
+  document.getElementById('parsed-badge').classList.remove('visible');
+  document.getElementById('reminder-datetime').value = '';
+  clearTimeout(window._autoSubmitTimer);
+}
+
+// ═══ AI DATE/TIME PARSER ═══
+const DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const MONTHS_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','sept','oct','nov','dec'];
+const TG = String.raw`(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|morning|afternoon|evening|noon|midnight|night|in\s+the\s+(?:morning|afternoon|evening|night)|tonight)`;
+
+function toLocalISO(d) {
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+function resolveMonth(name) {
+  const n = name.toLowerCase().replace(/[.,]/g, '');
+  const i = MONTHS.indexOf(n);
+  return i >= 0 ? i : MONTHS_ABBR.indexOf(n);
+}
+function resolveMonthDate(mi, day, base) {
+  const now = new Date(base), d = new Date(now.getFullYear(), mi, day);
+  if (d < now && d.toDateString() !== now.toDateString()) d.setFullYear(d.getFullYear() + 1);
+  return d;
+}
+function resolveDay(name, base) {
+  const t = DAYS.indexOf(name.toLowerCase());
+  if (t < 0) return null;
+  const d = new Date(base);
+  let diff = t - d.getDay();
+  if (diff <= 0) diff += 7;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function parseTimeString(ts, baseDate, dayOff) {
+  if (!ts) return null;
+  let t = ts.trim().toLowerCase();
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + (dayOff || 0));
+
+  // "in the morning/afternoon/evening/night"
+  const pm = t.match(/\s*in\s+the\s+(morning|afternoon|evening|night)\s*$/i);
+  if (pm) {
+    const per = { morning:[9,0], afternoon:[14,0], evening:[18,0], night:[21,0] };
+    t = t.replace(/\s*in\s+the\s+(morning|afternoon|evening|night)\s*$/i, '');
+    const [hh,mm] = per[pm[1].toLowerCase()];
+    if (t.trim()) { const p = parseTimeString(t.trim(), baseDate, dayOff); if (p) { p.setHours(hh,mm); return p; } }
+    d.setHours(hh, mm, 0, 0); return d;
+  }
+  // "quarter past/to", "half past"
+  const qm = t.match(/^(?:a\s+)?quarter\s+(past|after|to|till)\s+(\d{1,2})$/i);
+  if (qm) {
+    const h = parseInt(qm[2]);
+    if (h>=1 && h<=12) {
+      const mins = /^to|till$/i.test(qm[1]) ? 45 : 15;
+      let hh = /^to|till$/i.test(qm[1]) ? h-1 : h;
+      if (hh<=0) hh+=12; if (hh<12) hh+=12;
+      d.setHours(hh, mins, 0, 0); return d;
+    }
+  }
+  const hm = t.match(/^half\s+past\s+(\d{1,2})$/i);
+  if (hm) { const h=parseInt(hm[1]); if(h>=1&&h<=12){let hh=h;if(hh<12)hh+=12;d.setHours(hh,30,0,0);return d;} }
+
+  const presets = { noon:[12,0], midnight:[0,0], morning:[9,0], afternoon:[14,0], evening:[18,0], night:[21,0], tonight:[21,0] };
+  for (const [k,v] of Object.entries(presets)) {
+    if (t === k) { d.setHours(v[0], v[1], 0, 0); return d; }
+  }
+
+  let isPM = t.includes('pm'), isAM = t.includes('am');
+  t = t.replace(/\s*(am|pm)\s*/i, '');
+  let hours = 0, minutes = 0;
+  if (t.includes(':')) { const [h,m] = t.split(':'); hours = parseInt(h); minutes = parseInt(m) || 0; }
+  else { hours = parseInt(t); }
+  if (isNaN(hours)) return null;
+  if (isPM && hours < 12) hours += 12;
+  if (isAM && hours === 12) hours = 0;
+  if (!isPM && !isAM && hours >= 1 && hours <= 6) hours += 12;
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
+function parseVoiceReminder(raw) {
+  if (!raw || !raw.trim()) return null;
+  let text = raw.trim();
+  const pf = /^(remind me to |remind me |set a reminder to |set a reminder |reminder to |reminder |hey |okay |please |can you |add a reminder to |add reminder to |add reminder |create reminder |create a reminder |i need to |i have to |don't forget to |don't forget |remember to )/i;
+  text = text.replace(pf, '');
+  if (!text) return null;
+
+  const now = new Date(), AM = [...MONTHS, ...MONTHS_ABBR].join('|');
+  let tt = null, rem = text, m;
+
+  // ── SPECIFIC DATES ──
+  m = rem.match(new RegExp('^(.+?)\\s+(?:on\\s+)?('+AM+')\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+  if (m) { const mi=resolveMonth(m[2]),day=parseInt(m[3]); if(mi>=0&&day>=1&&day<=31){tt=parseTimeString(m[4]||'morning',resolveMonthDate(mi,day,now),0);rem=m[1];} }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+on\\s+the\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s+of\\s+('+AM+')(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { const mi=resolveMonth(m[3]),day=parseInt(m[2]); if(mi>=0&&day>=1&&day<=31){tt=parseTimeString(m[4]||'morning',resolveMonthDate(mi,day,now),0);rem=m[1];} }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+on\\s+the\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { const day=parseInt(m[2]); if(day>=1&&day<=31){const d=new Date(now);d.setDate(day);if(d<=now)d.setMonth(d.getMonth()+1);tt=parseTimeString(m[3]||'morning',d,0);rem=m[1];} }
+  }
+
+  // ── RELATIVE DAYS ──
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+this\\s+(?:coming\\s+)?('+DAYS.join('|')+')(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { tt=parseTimeString(m[3]||'morning',resolveDay(m[2],now),0); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+(?:a\\s+)?week\\s+from\\s+('+DAYS.join('|')+')(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { const db=resolveDay(m[2],now); db.setDate(db.getDate()+7); tt=parseTimeString(m[3]||'morning',db,0); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+tomorrow(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { tt=parseTimeString(m[2]||'morning',now,1); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+today(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { tt=parseTimeString(m[2]||'evening',now,0); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+tonight(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { tt=parseTimeString(m[2]||'tonight',now,0); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+next\\s+('+DAYS.join('|')+')(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { const db=resolveDay(m[2],now); db.setDate(db.getDate()+7); tt=parseTimeString(m[3]||'morning',db,0); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+(?:on\\s+)?('+DAYS.join('|')+')(?:\\s+(?:at\\s+)?'+TG+')?\\s*$','i'));
+    if (m) { tt=parseTimeString(m[3]||'morning',resolveDay(m[2],now),0); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(/^(.+?)\s+in\s+(\d+)\s*(minutes?|mins?|hours?|hrs?)\s*$/i);
+    if (m) { const amt=parseInt(m[2]); tt=new Date(now); if(m[3].toLowerCase().startsWith('h'))tt.setHours(tt.getHours()+amt); else tt.setMinutes(tt.getMinutes()+amt); rem=m[1]; }
+  }
+  if (!tt) {
+    m = rem.match(new RegExp('^(.+?)\\s+(?:at\\s+)?('+TG+')\\s*$','i'));
+    if (m) { tt=parseTimeString(m[2],now,0); rem=m[1]; }
+  }
+
+  // Past times → tomorrow
+  if (tt && tt <= now && tt.toDateString() === now.toDateString()) tt.setDate(tt.getDate() + 1);
+
+  const title = rem.trim();
+  if (!title) return null;
+  return {
+    title: title.charAt(0).toUpperCase() + title.slice(1),
+    dateTime: tt ? toLocalISO(tt) : null,
+    dateTimeObj: tt || null
+  };
+}
+
+// ── API fallback for complex phrases ──
+async function parseWithAPI(rawText) {
+  try {
+    const resp = await fetch('https://api.botoi.com/v1/date', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: rawText, reference_date: new Date().toISOString().slice(0, 10) })
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data && data.date) {
+      const d = new Date(data.date);
+      if (!isNaN(d.getTime()) && d > new Date()) {
+        let title = rawText.replace(/\s+(on\s+|at\s+)?.*$/i, '').trim();
+        const pf = /^(remind me to |remind me |set a reminder to |set a reminder |reminder to |reminder |hey |okay |please |can you |add a reminder to |add reminder to |add reminder |create reminder |create a reminder |i need to |i have to |don't forget to |don't forget |remember to )/i;
+        title = title.replace(pf, '');
+        if (!title) title = rawText;
+        return { title: title.charAt(0).toUpperCase() + title.slice(1), dateTime: toLocalISO(d), dateTimeObj: d, source: 'api' };
+      }
+    }
+    return null;
+  } catch { return null; }
+}
+
+// ═══ TABS ═══
+let currentTab = 'notes';
+function switchTab(tab) {
+  if (recognition) { recognition.abort(); recognition = null; }
+  stopDictationUI();
+  clearTimeout(window._autoSubmitTimer);
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab:nth-child('+(tab==='notes'?1:2)+')').classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  renderAll();
+}
+
+// ═══ NOTES ═══
+function addNote() {
+  const text = document.getElementById('note-input').value.trim();
+  if (!text) return showToast('Please enter some text or use voice');
+  const data = loadData();
+  data.notes.unshift({ id: genId(), text, createdAt: new Date().toISOString() });
+  saveData(data);
+  document.getElementById('note-input').value = '';
+  renderAll();
+  showToast('✅ Note saved');
+}
+function deleteNote(id) {
+  const data = loadData();
+  data.notes = data.notes.filter(n => n.id !== id);
+  saveData(data);
+  renderAll();
+  showToast('🗑️ Note deleted');
+}
+function renderNotes(data) {
+  const list = document.getElementById('notes-list'), empty = document.getElementById('notes-empty');
+  document.getElementById('notes-count').textContent = data.notes.length;
+  if (!data.notes.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = data.notes.map(n => '<div class="card"><div class="card-body"><div class="card-title">'+escapeHtml(n.text)+'</div><div class="card-meta"><span>📅 '+formatDate(n.createdAt)+'</span></div></div><button class="btn-delete" onclick="deleteNote(\''+n.id+'\')">✕</button></div>').join('');
+}
+
+// ═══ REMINDERS ═══
+function addReminder() {
+  if (window._guard) return;
+  window._guard = true;
+  setTimeout(() => { window._guard = false; }, 1000);
+  const ti = document.getElementById('reminder-input'), di = document.getElementById('reminder-datetime');
+  const title = ti.value.trim(), dateTime = di.value;
+  if (!title) { window._guard = false; return showToast('⚠️ Please enter a reminder title', 'warn'); }
+  if (!dateTime) { window._guard = false; return showToast('⚠️ Please set a date & time', 'warn'); }
+  if (new Date(dateTime) <= new Date()) { window._guard = false; return showToast('⚠️ Please pick a future time', 'warn'); }
+  const data = loadData();
+  const dup = data.reminders.find(r => r.title === title && r.dateTime === dateTime && (Date.now() - new Date(r.createdAt).getTime()) < 5000);
+  if (dup) { window._guard = false; return; }
+  const reminder = { id: genId(), title, dateTime, createdAt: new Date().toISOString(), notified: false };
+  data.reminders.unshift(reminder);
+  saveData(data);
+  ti.value = ''; di.value = '';
+  clearParsed();
+  scheduleNotification(reminder);
+  renderAll();
+  showToast('⏰ Reminder set');
+}
+function deleteReminder(id) {
+  const data = loadData();
+  data.reminders = data.reminders.filter(r => r.id !== id);
+  saveData(data);
+  renderAll();
+  showToast('🗑️ Reminder deleted');
+}
+function renderReminders(data) {
+  const list = document.getElementById('reminders-list'), empty = document.getElementById('reminders-empty');
+  document.getElementById('reminders-count').textContent = data.reminders.length;
+  if (!data.reminders.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const sorted = [...data.reminders].sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
+  list.innerHTML = sorted.map(r => {
+    const ov = isOverdue(r.dateTime) && !r.notified;
+    return '<div class="card"><div class="card-body"><div class="card-title">'+escapeHtml(r.title)+'</div><div class="card-meta"><span class="reminder-time'+(ov?' reminder-due':'')+'">⏰ '+formatDate(r.dateTime)+'</span>'+(ov?'<span style="color:#EF4444;">⚠️ Due now</span>':'')+'</div></div><button class="btn-delete" onclick="deleteReminder(\''+r.id+'\')">✕</button></div>';
+  }).join('');
+}
+
+// ═══ NOTIFICATIONS ═══
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+}
+function scheduleNotification(reminder) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const delay = new Date(reminder.dateTime).getTime() - Date.now();
+  if (delay <= 0 || delay > 86400000) return;
+  setTimeout(() => {
+    const data = loadData();
+    const r = data.reminders.find(r => r.id === reminder.id);
+    if (r && !r.notified) {
+      new Notification('⏰ Reminder', { body: r.title, vibrate: [200,100,200], tag: r.id });
+      r.notified = true;
+      saveData(data);
+      renderAll();
+    }
+  }, delay);
+}
+function checkPendingReminders() {
+  requestNotificationPermission();
+  const data = loadData();
+  let notified = 0;
+  data.reminders.forEach(r => {
+    if (!r.notified && isOverdue(r.dateTime)) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('⏰ Overdue Reminder', { body: r.title, vibrate: [200,100,200], tag: r.id });
+      }
+      r.notified = true; notified++;
+    }
+    if (!r.notified && !isOverdue(r.dateTime)) scheduleNotification(r);
+  });
+  if (notified > 0) { saveData(data); renderAll(); showToast('🔔 '+notified+' reminder'+(notified>1?'s':'')+' triggered'); }
+  else showToast('✅ All caught up');
+}
+
+// ═══ VOICE DICTATION ═══
+let recognition = null, currentDictTarget = 'note';
+
+function initSR() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const rec = new SR();
+  rec.continuous = false; rec.interimResults = true; rec.lang = 'en-US';
+  return rec;
+}
+
+async function startDictation(target) {
+  if (recognition) { recognition.abort(); recognition = null; }
+  recognition = initSR();
+  if (!recognition) { showToast('⚠️ Voice not supported', 'warn'); return; }
+
+  currentDictTarget = target;
+  const micBtn = document.getElementById(target === 'note' ? 'mic-note' : 'mic-reminder');
+  micBtn.classList.add('listening');
+  micBtn.textContent = '🔴';
+
+  const inputEl = target === 'note' ? document.getElementById('note-input') : document.getElementById('reminder-input');
+
+  recognition.onresult = (e) => {
+    let t = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+    inputEl.value = t;
+  };
+
+  recognition.onerror = (e) => {
+    stopDictationUI();
+    if (e.error === 'not-allowed') showToast('⚠️ Microphone access denied', 'warn');
+    else if (e.error !== 'aborted') showToast('⚠️ Voice error: ' + e.error, 'warn');
+  };
+
+  recognition.onend = async () => {
+    const finalText = inputEl.value.trim();
+    stopDictationUI();
+    if (!finalText || target !== 'reminder') return;
+
+    // Try local parser
+    let parsed = parseVoiceReminder(finalText);
+
+    // If no date found, try API fallback
+    if (parsed && !parsed.dateTime) {
+      showToast('🤖 Checking with AI...', 'ai');
+      const apiResult = await parseWithAPI(finalText);
+      if (apiResult && apiResult.dateTime) parsed = apiResult;
+    }
+    if (!parsed || !parsed.dateTime) {
+      // Try API even if local parser failed entirely
+      if (!parsed) {
+        showToast('🤖 Checking with AI...', 'ai');
+        const apiResult = await parseWithAPI(finalText);
+        if (apiResult && apiResult.dateTime) parsed = apiResult;
+      }
+    }
+
+    if (parsed && parsed.dateTime) {
+      document.getElementById('reminder-input').value = parsed.title;
+      document.getElementById('reminder-datetime').value = parsed.dateTime;
+      showParsedBadge(parsed);
+      showToast('🤖 ' + (parsed.source==='api'?'AI parsed':'Got it') + '! Adding reminder...', 'ai');
+      clearTimeout(window._autoSubmitTimer);
+      window._autoSubmitTimer = setTimeout(() => {
+        if (document.getElementById('reminder-input').value.trim() && document.getElementById('reminder-datetime').value) {
+          addReminder();
+        }
+      }, 1200);
+    } else if (parsed) {
+      document.getElementById('reminder-input').value = parsed.title;
+      showToast('📝 Title set — when is this due?');
+    } else {
+      document.getElementById('reminder-input').value = finalText;
+      showToast('🎤 Heard you! Set a date & time below');
+    }
+  };
+
+  recognition.start();
+  showToast('🎤 Listening... speak now');
+}
+
+function stopDictationUI() {
+  document.querySelectorAll('.btn-mic').forEach(b => { b.classList.remove('listening'); b.textContent = '🎤'; });
+  recognition = null;
+}
+
+// ═══ EXPORT ═══
+function exportData() {
+  const data = loadData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'voicenotes_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Data exported');
+}
+
+// ═══ INIT ═══
+function renderAll() {
+  const data = loadData();
+  if (currentTab === 'notes') renderNotes(data);
+  else renderReminders(data);
+}
+
+function init() {
+  renderAll();
+  requestNotificationPermission();
+
+  loadData().reminders.forEach(r => {
+    if (!r.notified && !isOverdue(r.dateTime)) scheduleNotification(r);
+  });
+
+  setInterval(() => {
+    const d = loadData();
+    d.reminders.forEach(r => {
+      if (!r.notified && isOverdue(r.dateTime)) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('⏰ Reminder', { body: r.title, vibrate: [200,100,200], tag: r.id });
+        }
+        r.notified = true;
+        saveData(d);
+        renderAll();
+      }
+    });
+  }, 30000);
+
+  document.getElementById('note-input').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addNote();
+  });
+
+  const ri = document.getElementById('reminder-input'), rd = document.getElementById('reminder-datetime');
+  ri.addEventListener('blur', async () => {
+    const text = ri.value.trim();
+    if (!text || rd.value) return;
+    let parsed = parseVoiceReminder(text);
+    if (parsed && parsed.dateTime) {
+      ri.value = parsed.title;
+      rd.value = parsed.dateTime;
+      showParsedBadge(parsed);
+      showToast('🤖 Time detected!', 'ai');
+    }
+  });
+
+  rd.addEventListener('change', () => {
+    document.getElementById('parsed-badge').classList.remove('visible');
+    clearTimeout(window._autoSubmitTimer);
+  });
+
+  document.querySelectorAll('.btn-mic').forEach(btn => {
+    let lastTap = 0;
+    btn.addEventListener('click', (e) => {
+      if (Date.now() - lastTap < 600) e.preventDefault();
+      lastTap = Date.now();
+    }, true);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
