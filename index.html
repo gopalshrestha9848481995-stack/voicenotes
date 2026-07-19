@@ -1,0 +1,667 @@
+index.html
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+Voice Notes & Reminders
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --card: #1a1a1a;
+    --text: #f0f0f0;
+    --muted: #888;
+    --accent: #FF6B35;
+    --accent2: #3B82F6;
+    --danger: #EF4444;
+    --border: rgba(255,255,255,0.08);
+    --green: #22C55E;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 16px 20px 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-actions { display: flex; gap: 10px; }
+  .icon-sm {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.15s;
+  }
+  .icon-sm:active { transform: scale(0.92); background: #2a2a2a; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 14px 0; font-weight: 700;
+    font-size: 14px; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+  }
+  .tab-badge {
+    background: var(--accent); color: #000; font-size: 10px; font-weight: 800;
+    padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle;
+  }
+
+  /* ── CONTENT ── */
+  main {
+    flex: 1; overflow-y: auto; padding: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── INPUT CARD ── */
+  .input-card {
+    background: var(--card); border-radius: 16px; padding: 16px;
+    border: 1px solid var(--border); margin-bottom: 16px;
+  }
+  .input-row {
+    display: flex; gap: 10px; align-items: center;
+  }
+  input, textarea {
+    flex: 1; background: #111; border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-size: 15px; font-family: inherit; outline: none;
+    transition: border 0.2s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: none; height: 60px; }
+  input[type="datetime-local"] {
+    color-scheme: dark;
+    -webkit-appearance: none;
+  }
+
+  .btn {
+    padding: 12px 18px; border-radius: 10px; font-weight: 700;
+    font-size: 13px; border: none; cursor: pointer; transition: 0.15s;
+    white-space: nowrap; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-mic {
+    width: 46px; height: 46px; border-radius: 50%; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .btn-mic.listening {
+    background: var(--danger) !important;
+    animation: pulse-mic 1s infinite;
+    box-shadow: 0 0 20px rgba(239,68,68,0.5);
+  }
+  @keyframes pulse-mic {
+    0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 24px rgba(239,68,68,0.8); }
+  }
+
+  /* ── ITEM LIST ── */
+  .item-list { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 16px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    transition: 0.2s;
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; word-break: break-word; }
+  .card-meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+  .card-meta span { display: flex; align-items: center; gap: 4px; }
+
+  .reminder-time {
+    background: rgba(59,130,246,0.15); color: var(--accent2);
+    padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;
+  }
+  .reminder-due {
+    color: var(--accent) !important;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .btn-delete {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: transparent; color: var(--muted); font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: 0.15s;
+  }
+  .btn-delete:active { background: rgba(239,68,68,0.2); color: var(--danger); }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-weight: 700; font-size: 16px; margin-bottom: 4px; color: #aaa; }
+  .empty-sub { font-size: 13px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: var(--green); color: #000; padding: 12px 24px;
+    border-radius: 100px; font-weight: 700; font-size: 14px;
+    z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s; box-shadow: 0 8px 24px rgba(34,197,94,0.3);
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── RESPONSIVE ── */
+  @media (min-width: 600px) {
+    body { max-width: 500px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <h1>🎙️ VoiceNotes</h1>
+  <div class="header-actions">
+    <button class="icon-sm" onclick="checkPendingReminders()" title="Check reminders">🔔</button>
+    <button class="icon-sm" onclick="exportData()" title="Export data">📤</button>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('notes')">
+    📝 Notes <span class="tab-badge" id="notes-count">0</span>
+  </div>
+  <div class="tab" onclick="switchTab('reminders')">
+    ⏰ Reminders <span class="tab-badge" id="reminders-count">0</span>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main>
+  <!-- NOTES PANEL -->
+  <div class="panel active" id="panel-notes">
+    <div class="input-card">
+      <textarea id="note-input" placeholder="Write a note or tap 🎤 to dictate..."></textarea>
+      <div class="input-row" style="margin-top:10px;">
+        <button class="btn btn-mic btn-outline" id="mic-note" onclick="startDictation('note')" title="Voice dictation">🎤</button>
+        <button class="btn btn-primary" onclick="addNote()" style="flex:1;justify-content:center;">Add Note</button>
+      </div>
+    </div>
+    <div class="item-list" id="notes-list"></div>
+    <div class="empty" id="notes-empty">
+      <div class="empty-icon">📝</div>
+      <div class="empty-title">No notes yet</div>
+      <div class="empty-sub">Type or tap the mic to create one</div>
+    </div>
+  </div>
+
+  <!-- REMINDERS PANEL -->
+  <div class="panel" id="panel-reminders">
+    <div class="input-card">
+      <input type="text" id="reminder-input" placeholder="What do you need to be reminded of?" style="margin-bottom:10px;">
+      <input type="datetime-local" id="reminder-datetime">
+      <div class="input-row" style="margin-top:10px;">
+        <button class="btn btn-mic btn-outline" id="mic-reminder" onclick="startDictation('reminder')" title="Voice dictation">🎤</button>
+        <button class="btn btn-primary" onclick="addReminder()" style="flex:1;justify-content:center;">Set Reminder</button>
+      </div>
+    </div>
+    <div class="item-list" id="reminders-list"></div>
+    <div class="empty" id="reminders-empty">
+      <div class="empty-icon">⏰</div>
+      <div class="empty-title">No reminders</div>
+      <div class="empty-sub">Add one above — you'll get a notification</div>
+    </div>
+  </div>
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA STORE (localStorage)
+// ═══════════════════════════════════════
+function loadData() {
+  try {
+    return JSON.parse(localStorage.getItem('voicenotes_data')) || { notes: [], reminders: [] };
+  } catch { return { notes: [], reminders: [] }; }
+}
+function saveData(data) {
+  localStorage.setItem('voicenotes_data', JSON.stringify(data));
+}
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const opts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-US', opts);
+}
+
+function isOverdue(iso) {
+  return iso && new Date(iso) < new Date();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ═══════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════
+let currentTab = 'notes';
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', false));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  if (tab === 'notes') {
+    document.querySelector('.tab:nth-child(1)').classList.add('active');
+    document.getElementById('panel-notes').classList.add('active');
+  } else {
+    document.querySelector('.tab:nth-child(2)').classList.add('active');
+    document.getElementById('panel-reminders').classList.add('active');
+  }
+  renderAll();
+}
+
+// ═══════════════════════════════════════
+// NOTES
+// ═══════════════════════════════════════
+function addNote() {
+  const input = document.getElementById('note-input');
+  const text = input.value.trim();
+  if (!text) return showToast('Please enter some text or use voice');
+
+  const data = loadData();
+  data.notes.unshift({
+    id: genId(),
+    text: text,
+    createdAt: new Date().toISOString()
+  });
+  saveData(data);
+  input.value = '';
+  renderAll();
+  showToast('✅ Note saved');
+}
+
+function deleteNote(id) {
+  const data = loadData();
+  data.notes = data.notes.filter(n => n.id !== id);
+  saveData(data);
+  renderAll();
+  showToast('🗑️ Note deleted');
+}
+
+function renderNotes(data) {
+  const list = document.getElementById('notes-list');
+  const empty = document.getElementById('notes-empty');
+  const count = document.getElementById('notes-count');
+
+  count.textContent = data.notes.length;
+  if (data.notes.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = data.notes.map(n => `
+    <div class="card">
+      <div class="card-body">
+        <div class="card-title">${escapeHtml(n.text)}</div>
+        <div class="card-meta"><span>📅 ${formatDate(n.createdAt)}</span></div>
+      </div>
+      <button class="btn-delete" onclick="deleteNote('${n.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════
+// REMINDERS
+// ═══════════════════════════════════════
+function addReminder() {
+  const titleInput = document.getElementById('reminder-input');
+  const dateInput = document.getElementById('reminder-datetime');
+  const title = titleInput.value.trim();
+  const dateTime = dateInput.value;
+
+  if (!title) return showToast('Please enter a reminder title');
+  if (!dateTime) return showToast('Please set a date & time');
+
+  const reminderTime = new Date(dateTime);
+  if (reminderTime <= new Date()) {
+    return showToast('⚠️ Please pick a future time');
+  }
+
+  const data = loadData();
+  const reminder = {
+    id: genId(),
+    title: title,
+    dateTime: dateTime,
+    createdAt: new Date().toISOString(),
+    notified: false
+  };
+  data.reminders.unshift(reminder);
+  saveData(data);
+
+  titleInput.value = '';
+  dateInput.value = '';
+
+  // Schedule notification
+  scheduleNotification(reminder);
+
+  renderAll();
+  showToast('⏰ Reminder set');
+}
+
+function deleteReminder(id) {
+  const data = loadData();
+  data.reminders = data.reminders.filter(r => r.id !== id);
+  saveData(data);
+  renderAll();
+  showToast('🗑️ Reminder deleted');
+}
+
+function renderReminders(data) {
+  const list = document.getElementById('reminders-list');
+  const empty = document.getElementById('reminders-empty');
+  const count = document.getElementById('reminders-count');
+
+  count.textContent = data.reminders.length;
+  if (data.reminders.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Sort: upcoming first, then past
+  const sorted = [...data.reminders].sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
+  list.innerHTML = sorted.map(r => {
+    const overdue = isOverdue(r.dateTime) && !r.notified;
+    const cls = overdue ? 'reminder-due' : '';
+    return `
+      <div class="card">
+        <div class="card-body">
+          <div class="card-title">${escapeHtml(r.title)}</div>
+          <div class="card-meta">
+            <span class="reminder-time ${cls}">⏰ ${formatDate(r.dateTime)}</span>
+            ${overdue ? '<span style="color:#EF4444;">⚠️ Due now</span>' : ''}
+          </div>
+        </div>
+        <button class="btn-delete" onclick="deleteReminder('${r.id}')">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function scheduleNotification(reminder) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  const triggerTime = new Date(reminder.dateTime).getTime();
+  const now = Date.now();
+  const delay = triggerTime - now;
+
+  if (delay <= 0) return; // already past
+  if (delay > 24 * 60 * 60 * 1000) return; // too far, skip (but will check on load)
+
+  setTimeout(() => {
+    // Check still exists and not already notified
+    const data = loadData();
+    const r = data.reminders.find(r => r.id === reminder.id);
+    if (r && !r.notified) {
+      new Notification('⏰ Reminder', {
+        body: r.title,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔔</text></svg>',
+        vibrate: [200, 100, 200],
+        tag: r.id
+      });
+      r.notified = true;
+      saveData(data);
+      renderAll();
+    }
+  }, delay);
+}
+
+function checkPendingReminders() {
+  requestNotificationPermission();
+
+  const data = loadData();
+  let notified = 0;
+
+  data.reminders.forEach(r => {
+    if (!r.notified && isOverdue(r.dateTime)) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('⏰ Overdue Reminder', {
+          body: r.title,
+          vibrate: [200, 100, 200],
+          tag: r.id
+        });
+      }
+      r.notified = true;
+      notified++;
+    }
+    // Re-schedule future ones
+    if (!r.notified && !isOverdue(r.dateTime)) {
+      scheduleNotification(r);
+    }
+  });
+
+  if (notified > 0) {
+    saveData(data);
+    renderAll();
+    showToast(`🔔 ${notified} reminder${notified > 1 ? 's' : ''} triggered`);
+  } else {
+    showToast('✅ All caught up');
+  }
+}
+
+// ═══════════════════════════════════════
+// VOICE DICTATION (Web Speech API)
+// ═══════════════════════════════════════
+let recognition = null;
+let currentDictTarget = 'note';
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return null;
+
+  const rec = new SpeechRecognition();
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+  return rec;
+}
+
+function startDictation(target) {
+  // Stop any ongoing recognition
+  if (recognition) {
+    recognition.abort();
+    recognition = null;
+  }
+
+  recognition = initSpeechRecognition();
+  if (!recognition) {
+    showToast('⚠️ Voice not supported on this device');
+    return;
+  }
+
+  currentDictTarget = target;
+
+  // Highlight correct mic button
+  const micBtn = document.getElementById(target === 'note' ? 'mic-note' : 'mic-reminder');
+  micBtn.classList.add('listening');
+  micBtn.textContent = '🔴';
+
+  const inputEl = target === 'note'
+    ? document.getElementById('note-input')
+    : document.getElementById('reminder-input');
+
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    inputEl.value = transcript;
+  };
+
+  recognition.onerror = (event) => {
+    console.log('Speech error:', event.error);
+    stopDictationUI();
+    if (event.error === 'not-allowed') {
+      showToast('⚠️ Microphone access denied');
+    } else if (event.error !== 'aborted') {
+      showToast('⚠️ Voice error: ' + event.error);
+    }
+  };
+
+  recognition.onend = () => {
+    stopDictationUI();
+  };
+
+  recognition.start();
+  showToast('🎤 Listening... speak now');
+}
+
+function stopDictationUI() {
+  document.querySelectorAll('.btn-mic').forEach(b => {
+    b.classList.remove('listening');
+    b.textContent = '🎤';
+  });
+  recognition = null;
+}
+
+// ═══════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════
+function exportData() {
+  const data = loadData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `voicenotes_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Data exported');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+function renderAll() {
+  const data = loadData();
+  if (currentTab === 'notes') renderNotes(data);
+  else renderReminders(data);
+}
+
+// Periodic reminder check (every 30 seconds)
+function init() {
+  renderAll();
+  requestNotificationPermission();
+
+  // Schedule existing future reminders
+  const data = loadData();
+  data.reminders.forEach(r => {
+    if (!r.notified && !isOverdue(r.dateTime)) {
+      scheduleNotification(r);
+    }
+  });
+
+  // Periodic check
+  setInterval(() => {
+    const d = loadData();
+    d.reminders.forEach(r => {
+      if (!r.notified && isOverdue(r.dateTime)) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('⏰ Reminder', { body: r.title, vibrate: [200, 100, 200], tag: r.id });
+        }
+        r.notified = true;
+        saveData(d);
+        renderAll();
+      }
+    });
+  }, 30000);
+
+  // Keyboard shortcut: Ctrl+Enter to add note
+  document.getElementById('note-input').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addNote();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
